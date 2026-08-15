@@ -50,26 +50,30 @@ describe('tasks API Integration Tests', () => {
       expect(res.body[1].title).toBe('Task 2');
     });
 
-    it('should filter tasks by status', async () => {
+    it('should filter tasks by status with exact match', async () => {
       taskService.create({ title: 'Task 1', status: 'todo' });
       taskService.create({ title: 'Task 2', status: 'done' });
 
-      const res = await request(app).get('/tasks?status=done');
-      expect(res.status).toBe(200);
-      expect(res.body.length).toBe(1);
-      expect(res.body[0].title).toBe('Task 2');
+      const res1 = await request(app).get('/tasks?status=done');
+      expect(res1.status).toBe(200);
+      expect(res1.body.length).toBe(1);
+      expect(res1.body[0].title).toBe('Task 2');
+
+      const res2 = await request(app).get('/tasks?status=do');
+      expect(res2.status).toBe(200);
+      expect(res2.body.length).toBe(0);
     });
 
-    it('should return paginated tasks', async () => {
+    it('should return paginated tasks using 1-based page', async () => {
       for (let i = 0; i < 15; i++) {
         taskService.create({ title: `Task ${i}` });
       }
 
       const res = await request(app).get('/tasks?page=1&limit=10');
       expect(res.status).toBe(200);
-      expect(res.body.length).toBe(5);
-      expect(res.body[0].title).toBe('Task 10');
-      expect(res.body[4].title).toBe('Task 14');
+      expect(res.body.length).toBe(10);
+      expect(res.body[0].title).toBe('Task 0');
+      expect(res.body[9].title).toBe('Task 9');
     });
 
     it('should paginate with default limit if page is specified and limit is not', async () => {
@@ -79,8 +83,8 @@ describe('tasks API Integration Tests', () => {
 
       const res = await request(app).get('/tasks?page=1');
       expect(res.status).toBe(200);
-      expect(res.body.length).toBe(5);
-      expect(res.body[0].title).toBe('Task 10');
+      expect(res.body.length).toBe(10);
+      expect(res.body[0].title).toBe('Task 0');
     });
 
     it('should paginate with default page if limit is specified and page is not', async () => {
@@ -91,7 +95,7 @@ describe('tasks API Integration Tests', () => {
       const res = await request(app).get('/tasks?limit=5');
       expect(res.status).toBe(200);
       expect(res.body.length).toBe(5);
-      expect(res.body[0].title).toBe('Task 5');
+      expect(res.body[0].title).toBe('Task 0');
     });
   });
 
@@ -117,6 +121,7 @@ describe('tasks API Integration Tests', () => {
       expect(res.body.priority).toBe(data.priority);
       expect(res.body.dueDate).toBe(data.dueDate);
       expect(res.body.completedAt).toBeNull();
+      expect(res.body.assignee).toBeNull();
       expect(res.body.createdAt).toBeDefined();
     });
 
@@ -253,18 +258,74 @@ describe('tasks API Integration Tests', () => {
   });
 
   describe('PATCH /tasks/:id/complete', () => {
-    it('should mark task as completed and return updated task', async () => {
+    it('should mark task as completed, return updated task, and keep priority', async () => {
       const task = taskService.create({ title: 'Complete Me', priority: 'high' });
 
       const res = await request(app).patch(`/tasks/${task.id}/complete`);
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('done');
-      expect(res.body.priority).toBe('medium');
+      expect(res.body.priority).toBe('high');
       expect(res.body.completedAt).toBeDefined();
     });
 
     it('should return 404 if task to complete does not exist', async () => {
       const res = await request(app).patch('/tasks/non-existent-uuid/complete');
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Task not found');
+    });
+  });
+
+  describe('PATCH /tasks/:id/assign', () => {
+    it('should assign a task successfully', async () => {
+      const task = taskService.create({ title: 'Task to Assign' });
+
+      const res = await request(app)
+        .patch(`/tasks/${task.id}/assign`)
+        .send({ assignee: 'Jane Smith' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(task.id);
+      expect(res.body.assignee).toBe('Jane Smith');
+    });
+
+    it('should return 400 if assignee is empty string', async () => {
+      const task = taskService.create({ title: 'Task to Assign' });
+
+      const res = await request(app)
+        .patch(`/tasks/${task.id}/assign`)
+        .send({ assignee: '' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('assignee is required and must be a non-empty string');
+    });
+
+    it('should return 400 if assignee is missing', async () => {
+      const task = taskService.create({ title: 'Task to Assign' });
+
+      const res = await request(app)
+        .patch(`/tasks/${task.id}/assign`)
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('assignee is required and must be a non-empty string');
+    });
+
+    it('should return 400 if assignee is not a string', async () => {
+      const task = taskService.create({ title: 'Task to Assign' });
+
+      const res = await request(app)
+        .patch(`/tasks/${task.id}/assign`)
+        .send({ assignee: 12345 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('assignee is required and must be a non-empty string');
+    });
+
+    it('should return 404 if task to assign does not exist', async () => {
+      const res = await request(app)
+        .patch('/tasks/non-existent-uuid/assign')
+        .send({ assignee: 'Jane Smith' });
+
       expect(res.status).toBe(404);
       expect(res.body.error).toBe('Task not found');
     });

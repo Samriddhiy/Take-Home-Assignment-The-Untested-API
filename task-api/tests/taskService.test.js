@@ -17,6 +17,7 @@ describe('taskService Unit Tests', () => {
       expect(task.dueDate).toBeNull();
       expect(task.completedAt).toBeNull();
       expect(task.createdAt).toBeDefined();
+      expect(task.assignee).toBeNull();
       expect(isNaN(Date.parse(task.createdAt))).toBe(false);
     });
 
@@ -34,6 +35,7 @@ describe('taskService Unit Tests', () => {
       expect(task.status).toBe('in_progress');
       expect(task.priority).toBe('high');
       expect(task.dueDate).toBe(dueDate);
+      expect(task.assignee).toBeNull();
     });
   });
 
@@ -73,7 +75,7 @@ describe('taskService Unit Tests', () => {
       expect(tasks).toEqual([]);
     });
 
-    it('should return filtered tasks by status (checks current substring implementation)', () => {
+    it('should return filtered tasks by status with exact match', () => {
       const task1 = taskService.create({ title: 'Task 1', status: 'todo' });
       const task2 = taskService.create({ title: 'Task 2', status: 'in_progress' });
       const task3 = taskService.create({ title: 'Task 3', status: 'done' });
@@ -83,27 +85,30 @@ describe('taskService Unit Tests', () => {
       expect(todoTasks).not.toContainEqual(task2);
       expect(todoTasks).not.toContainEqual(task3);
 
-      const inProgressTasks = taskService.getByStatus('progress');
-      expect(inProgressTasks).toContainEqual(task2);
+      const inProgressTasksExact = taskService.getByStatus('in_progress');
+      expect(inProgressTasksExact).toContainEqual(task2);
+
+      const inProgressTasksPartial = taskService.getByStatus('progress');
+      expect(inProgressTasksPartial).toEqual([]);
     });
   });
 
   describe('getPaginated', () => {
-    it('should return paginated tasks according to page and limit', () => {
+    it('should return paginated tasks according to 1-based page and limit', () => {
       const createdTasks = [];
       for (let i = 0; i < 15; i++) {
         createdTasks.push(taskService.create({ title: `Task ${i}` }));
       }
 
-      const page0 = taskService.getPaginated(0, 5);
-      expect(page0.length).toBe(5);
-      expect(page0[0].title).toBe('Task 0');
-      expect(page0[4].title).toBe('Task 4');
-
       const page1 = taskService.getPaginated(1, 5);
       expect(page1.length).toBe(5);
-      expect(page1[0].title).toBe('Task 5');
-      expect(page1[4].title).toBe('Task 9');
+      expect(page1[0].title).toBe('Task 0');
+      expect(page1[4].title).toBe('Task 4');
+
+      const page2 = taskService.getPaginated(2, 5);
+      expect(page2.length).toBe(5);
+      expect(page2[0].title).toBe('Task 5');
+      expect(page2[4].title).toBe('Task 9');
     });
   });
 
@@ -182,18 +187,38 @@ describe('taskService Unit Tests', () => {
       expect(result).toBeNull();
     });
 
-    it('should set status to done, set completedAt, and set priority to medium (current behavior)', () => {
+    it('should set status to done, set completedAt, and keep original priority', () => {
       const created = taskService.create({ title: 'Task to Complete', priority: 'high' });
       const completed = taskService.completeTask(created.id);
 
       expect(completed).toBeDefined();
       expect(completed.status).toBe('done');
-      expect(completed.priority).toBe('medium');
+      expect(completed.priority).toBe('high');
       expect(completed.completedAt).toBeDefined();
       expect(isNaN(Date.parse(completed.completedAt))).toBe(false);
 
       const found = taskService.findById(created.id);
       expect(found.status).toBe('done');
+    });
+  });
+
+  describe('assignTask', () => {
+    it('should return null if task does not exist', () => {
+      const result = taskService.assignTask('non-existent-id', 'John Doe');
+      expect(result).toBeNull();
+    });
+
+    it('should update assignee and return updated task', () => {
+      const created = taskService.create({ title: 'Task to Assign' });
+      expect(created.assignee).toBeNull();
+
+      const updated = taskService.assignTask(created.id, 'John Doe');
+      expect(updated).toBeDefined();
+      expect(updated.id).toBe(created.id);
+      expect(updated.assignee).toBe('John Doe');
+
+      const found = taskService.findById(created.id);
+      expect(found.assignee).toBe('John Doe');
     });
   });
 });
