@@ -52,3 +52,18 @@ This document reports the issues found in the Task Manager API codebase during t
     completedAt: new Date().toISOString(),
   };
   ```
+
+---
+
+## 4. Missing Health Route
+
+* **Component**: `src/app.js`
+* **How Discovered**: Found while checking the code manually.
+* **Expected Behavior**: There should be a simple route (like `/health` or `/status`) to check if the server is up and working.
+* **Actual Behavior**: There is no route to check the server status.
+* **Proposed Fix**: Add a simple health route in `src/app.js` that returns a status message:
+  ```javascript
+  app.get('/health', (req, res) => {
+    res.json({ status: 'OK' });
+  });
+  ```

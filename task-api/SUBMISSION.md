@@ -23,7 +23,8 @@ We made the following key design decisions for implementing the task assignment 
   * We were surprised that the original status filter used `.includes()` substring matching. This allowed users to fetch `'in_progress'` tasks by querying `?status=progress`. We changed this to strict string matching to prevent unexpected return lists.
 * **Resetting Priority on Completion**:
   * We were surprised to find that completing a task reset its priority to `'medium'` unconditionally. In a real-world task manager, completing a task should not lose its original priority data (e.g. knowing that a completed task was high priority is valuable for reporting). We removed this mutation.
-
+* **No Controller Folder**:
+  * What surprised me the most was that there is no controller folder in the project. The code that checks inputs and runs the tasks is all written inside the routing files. Usually, it is better to keep routing and task logic in separate folders to keep the project clean.
 ---
 
 ## 3. What to Test Next
@@ -32,7 +33,8 @@ If we had more time, we would implement:
 * **Concurrent Request Simulation**: Tests simulating multiple parallel requests updating, assigning, or completing the same task to ensure no memory corruption occurs.
 * **UUID Validity Verification**: Explicit schema-validation tests asserting that all returned `id` values are valid UUIDv4 strings.
 * **Stats Date Sensitivity**: Additional edge-case unit tests for the overdue logic using precise timezone transitions.
-
+* **Test All Links with Postman**:
+  * If we had more time, we would build a complete Postman collection to test and check every single link (endpoint) to make sure they all work perfectly.
 ---
 
 ## 4. Questions Before Shipping to Production
